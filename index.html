@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Ký số truyền file</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Truyền file & ký số</h2>
+        <input type="file" id="fileInput" />
+        <button onclick="uploadFile()">Gửi & Ký số</button>
+        <div id="status"></div>
+        <h3>Danh sách file đã upload:</h3>
+        <div class="file-list" id="fileList"></div>
+        <h3>Kiểm tra chữ ký số:</h3>
+        <input type="file" id="verifyFile" /> File gốc<br>
+        <input type="file" id="verifySig" /> Chữ ký số (.sig)<br>
+        <input type="file" id="verifyPub" /> Public Key (.pem)<br>
+        <button onclick="verify()">Kiểm tra chữ ký</button>
+        <div id="verifyResult"></div>
+    </div>
+    <script>
+        function uploadFile() {
+            let input = document.getElementById('fileInput');
+            if (!input.files.length) {
+                alert('Chọn file trước khi gửi!');
+                return;
+            }
+            let formData = new FormData();
+            formData.append('file', input.files[0]);
+            fetch('http://localhost:5000/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('status').innerText = data.message || data.error;
+                loadFiles();
+            })
+            .catch(() => alert('Có lỗi xảy ra!'));
+        }
+
+        function loadFiles() {
+            fetch('http://localhost:5000/files')
+            .then(res => res.json())
+            .then(files => {
+                let html = files.map(f =>
+                    `<div class="file-item">
+                        <a href="http://localhost:5000/download/${f}" download>📄 ${f}</a> 
+                        | <a href="http://localhost:5000/download_sig/${f}" download>🔏 Chữ ký</a>
+                    </div>`
+                ).join('');
+                html += `<div class="file-item">
+                    <a href="http://localhost:5000/download_public_key" download>🗝️ Public Key (chung)</a>
+                </div>`;
+                document.getElementById('fileList').innerHTML = html;
+            });
+        }
+
+        function verify() {
+            let f = document.getElementById('verifyFile').files[0];
+            let s = document.getElementById('verifySig').files[0];
+            let p = document.getElementById('verifyPub').files[0];
+            if (!f || !s || !p) {
+                alert("Chọn đủ 3 file!");
+                return;
+            }
+            let formData = new FormData();
+            formData.append('file', f);
+            formData.append('signature', s);
+            formData.append('public_key', p);
+            fetch('http://localhost:5000/verify', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('verifyResult').innerText = data.result;
+            })
+            .catch(() => alert('Có lỗi khi kiểm tra!'));
+        }
+
+        loadFiles();
+    </script>
+</body>
+</html>
